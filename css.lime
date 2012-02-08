@@ -1,0 +1,602 @@
+%class css_parser
+
+start: stylesheet;
+
+stylesheet:
+  charset skip
+  import_list skip
+  namespace_list skip
+  rule_list {
+    $$ = new Node('stylesheet');
+    if ($1) {
+      $$->charset = $1;
+    }
+    $$->import = $3;
+    $$->namespaces = $5;
+    foreach($7 as $type => $r) {
+      $$->{$type} = $r;
+    }
+  }
+;
+
+# I could only wish I could ignore whitespace from the lexer…
+# Too bad, without recognizing it, selectors wouldn't be parsed right
+ws:
+  ws S
+| /* empty */
+;
+
+skip:
+  skip CDO
+| skip CDC
+| skip S
+| /* empty */
+;
+
+charset:
+  CHARSET_SYM ws STRING/$ ws ';'
+| /* empty */
+;
+
+rule_list:
+  rule_list/$ ruleset skip {
+    $$['ruleset'][] = $2;
+  }
+| rule_list/$ media skip {
+    $$['media'][] = $2;
+  }
+| rule_list/$ page skip {
+    $$['page'][] = $2;
+  }
+| rule_list/$ font_face skip {
+    $$['fontFace'][] = $2;
+  }
+| /* empty */ {
+    $$ = array();
+  }
+;
+
+media:
+  MEDIA_SYM ws media_query_list/q '{' ws ruleset_list/r '}' ws {
+    $$ = new Node('media');
+    $$->query = $q;
+    $$->rules = $r;
+  }
+;
+
+media_query_list:
+  non_empty_media_query_list
+| /* empty */ {
+    $$ = array();
+  }
+;
+
+non_empty_media_query_list:
+  media_query_list/$ ',' ws media_query {
+    $$->addNode($4);
+  } 
+| media_query {
+    $$ = new Node('media_query_list', null, $1);
+  }
+;
+
+media_query:
+  only_not ws IDENT ws media_query_expression_list {
+    $$ = new Node('media_query');
+    if ($1) {
+      $$->refine = $1;
+    }
+    $$->medium = $3;
+    $$->expr = $5;
+  }
+| media_query_expression media_query_expression_list {
+    $$ = new Node('media_query');
+    $$->expr = array_merge(array($1), $2);
+  }
+;
+
+only_not:
+  ONLY {
+    $$ = 'only';
+  }
+| NOT {
+    $$ = 'not';
+  }
+| /* empty */
+;
+
+media_query_expression:
+  '(' ws IDENT ws ':' ws expr ')' ws {
+    $$ = new Node('expr');
+    $$->property = $3;
+    $$->value = $7;
+  }
+| '(' ws IDENT ')' ws {
+    $$ = new Node('expr');
+    $$->property = $3;
+  }
+;
+
+media_query_expression_list:
+  media_query_expression_list/$ AND ws media_query_expression {
+    $$[] = $4;
+  }
+| /* empty */ {
+    $$ = array();
+  }
+;
+
+ruleset_list:
+  ruleset_list/$ ruleset {
+    $$[] = $2;
+  } 
+| /* empty */ {
+    $$ = array();
+  }
+;
+
+namespace_list:
+  namespace_list/$ namespace {
+    $$[] = $2;
+  }
+| /* empty */ {
+    $$ = array();
+  }
+;
+
+namespace:
+  NAMESPACE_SYM ws IDENT ws import_target ws ';' ws {
+    $$ = new Node('namespace');
+    $$->name = $3;
+    $$->target = $5; 
+  }
+| NAMESPACE_SYM ws import_target ws ';' ws {
+    $$ = new Node('namespace');
+    $$->target = $5;
+  }
+;
+
+import_list:
+  import_list/$ import {
+    $$[] = $2;
+  }
+| /* empty */ {
+    $$ = array();
+  }
+;
+
+import:
+  IMPORT_SYM skip import_target/i ws media_list/m ';' ws {
+    $$ = new Node('import');
+    $$->target = $i;
+    if ($m) {
+      $$->media = $m;
+    }
+  }
+;
+
+media_list:
+  media_list/$ ',' ws IDENT ws {
+    $$[] = $4;
+  }
+| /* empty */ {
+    $$ = array( );
+  }
+;
+
+import_target:
+  STRING
+| URI
+;
+
+font_face:
+  FONT_FACE_SYM ws '{' ws declaration_list/d '}' ws {
+    $$ = new Node('font_face');
+    $$->rules = $d;
+  }
+;
+
+ruleset:
+  selector_group '{' ws declaration_list '}' ws {
+    $$ = new Node('ruleset');
+    $$->selector = $1;
+    $$->decl = $4;
+  }
+;
+
+operator:
+  '/' ws
+| ',' ws
+| /* empty */ {
+    $$ = ' ';
+  }
+;
+
+declaration_list:
+  declaration_list/$ ';' ws declaration {
+    if ($4) {
+      $$[] = $4;
+    }
+  }
+| declaration {
+    $$ = array();
+    if ($1) {
+      $$[] = $1;
+    }
+  }
+;
+
+declaration:
+  property ':' ws expr prio {
+    $$ = new Node('declaration');
+    $$->property = $1;
+    $$->value = $4;
+    if ($5) {
+      $$->important = true;
+    }
+  }
+| /* empty */ {
+    $$ = null;
+  }
+;
+
+prio:
+  IMPORTANT_SYM ws {
+    $$ = true;
+  }
+| /* empty */ {
+    $$ = false;
+  }
+;
+
+property:
+  IDENT ws
+;
+
+expr:
+  non_empty_expr
+;
+
+non_empty_expr:
+  non_empty_expr/$ operator term {
+    if (!ctype_space($2)) {
+      $$[] = $2;
+    }
+    $$[] = $3;
+  }
+| term {
+    $$ = array($1);
+  }
+;
+
+term:
+  unary_operator unary_term/$ {
+    if ($1) {
+      $$->unary = $1;
+    }
+  }
+| STRING ws {
+    $$ = new Node('term');
+    $$->sub = 'string';
+    $$->value = $1;
+  }
+| IDENT ws {
+    $$ = new Node('term');
+    $$->sub = 'ident';
+    $$->value = $1;
+  }
+| URI ws {
+    $$ = new Node('term');
+    $$->sub = 'uri';
+    $$->value = $1;
+  }
+| UNICODERANGE ws {
+    $$ = new Node('term');
+    $$->sub = 'unicode';
+    $$->value = $1;
+  }
+| hexcolor
+;
+
+unary_term:
+  NUMBER ws {
+    $$ = new Node('term');
+    $$->sub = 'number';
+    $$->value = $1;
+  }
+| PERCENTAGE ws {
+    $$ = new Node('term');
+    $$->sub = 'percentage';
+    $$->value = $1;
+  }
+| LENGTH ws {
+    $$ = new Node('term');
+    $$->sub = 'length';
+    $$->value = $1;
+  }
+| EMS ws {
+    $$ = new Node('term');
+    $$->sub = 'ems';
+    $$->value = $1;
+  }
+| EXS ws {
+    $$ = new Node('term');
+    $$->sub = 'exs';
+    $$->value = $1;
+  }
+| ANGLE ws {
+    $$ = new Node('term');
+    $$->sub = 'angle';
+    $$->value = $1;
+  }
+| TIME ws {
+    $$ = new Node('term');
+    $$->sub = 'time';
+    $$->value = $1;
+  }
+| FREQ ws {
+    $$ = new Node('term');
+    $$->sub = 'freq';
+    $$->value = $1;
+  }
+| RESOLUTION ws {
+    $$ = new Node('term');
+    $$->sub = 'resolution';
+    $$->value = $1;
+  }
+| function
+;
+
+function:
+  FUNCTION ws non_empty_expr ')' ws {
+    $$ = new Node('term');
+    $$->sub = 'function';
+    $$->name = substr($1, 0, -1);
+    $$->args = $3;
+  }
+;
+
+unary_operator:
+  '+'
+| '-'
+| /* empty */
+;
+
+hexcolor:
+  HASH ws {
+    // # is already stripped at lexing staging
+    if (!preg_match('~\A(?:[a-f\d]{3}){1,2}\z~i', $1)) {
+      throw new parse_error('Invalid color: ' . $1);
+    }
+  }
+;
+
+/** selectors! */
+
+selector_group:
+  selector_group/$ ',' ws selector {
+    $$[] = $3;
+  }
+| selector {
+    $$ = array($1);
+  }
+;
+
+selector:
+  selector/$ combinator simple_selector_sequence {
+    $t = new Node('selector');
+    $t->combinator = $2;
+    $t->basis = $3;
+    $$->refine[] = $t;
+  }
+| simple_selector_sequence {
+    $$ = new Node('selector');
+    $$->basis = $1;
+    $$->refine = array();
+  }
+;
+
+combinator:
+  '+' ws
+| '>' ws
+| '~' ws
+| /* empty */ {
+    $$ = ' ';
+  }
+;
+
+simple_selector_sequence:
+  type_selector simple_selector_attribute ws {
+    $$ = new Node('single_selector');
+    $$->element = $1;
+    $$->refine = $2;
+  }
+| type_selector ws {
+    $$ = new Node('single_selector');
+    $$->element = $1;
+    $$->refine = array();
+  }
+| simple_selector_attribute ws {
+    $$ = new Node('single_selector');
+    $$->element = '*';
+    $$->refine = $1;
+  }
+;
+
+type_selector:
+  namespace_prefix IDENT {
+    $$ = new Node('type_selector');
+    $$->element = $2;
+    $$->ns = $1;
+  }
+| namespace_prefix '*' {
+    $$ = new Node('type_selector');
+    $$->element = '*';
+    $$->ns = $1;
+  }
+| IDENT {
+    $$ = new Node('type_selector');
+    $$->element = $1;
+    $$->ns = '*';
+  }
+| '*' {
+    $$ = new Node('type_selector');
+    $$->element = '*';
+    $$->ns = '*';
+  }
+;
+
+namespace_prefix:
+  IDENT '|' {
+    $$ = $1;
+  }
+| '*' '|' {
+    $$ = $2;
+  }
+| '|' {
+    $$ = '';
+  }
+;
+
+simple_selector_attribute:
+  simple_selector_attribute/$ simple_selector_attribute_spec {
+    $$[] = $2;
+  }
+| simple_selector_attribute_spec {
+    $$ = array($1);
+  }
+;
+
+simple_selector_attribute_spec:
+  HASH {
+    $$ = new Node('id');
+    $$->value = $1;
+  }
+| class
+| attrib
+| pseudo
+| negation
+;
+
+class:
+  '.' IDENT {
+    $$ = new Node('class');
+    $$->value = $2;
+  }
+;
+
+attrib:
+  '[' ws attribute ws attrib_extra ']' {
+    $$ = new Node('attribute');
+    $$->attribute = $3;
+    $$->cmp = $5;
+  }
+;
+
+attribute:
+  namespace_prefix IDENT {
+    $$ = new Node('attribute');
+    $$->ns = $1;
+    $$->name = $2;
+  }
+| IDENT {
+    $$ = new Node('attribute');
+    $$->name = $1;
+  }
+;
+
+attrib_extra:
+  attrib_extra_op attrib_extra_val ws {
+    $$ = new Node('comparison');
+    $$->operator = $1;
+    $$->value = $2;
+  }
+| /* empty */ {
+    $$ = null;
+  }
+;
+
+attrib_extra_op:
+  PREFIXMATCH
+| SUFFIXMATCH
+| SUBSTRINGMATCH
+| '='
+| INCLUDES
+| DASHMATCH
+;
+
+attrib_extra_val:
+  ws STRING {
+    $$ = $2;
+  }
+| ws IDENT {
+    $$ = $2;
+  }
+;
+
+pseudo:
+  ':' opt_pseudo pseudo_argument {
+    $$ = new Node('pseudo');
+    if ($2) {
+      $$->pseudo = true;
+    }
+    $$->what = $3;
+  }
+;
+
+opt_pseudo:
+  ':'
+| /* empty */
+;
+
+pseudo_argument:
+  IDENT
+| functional_pseudo
+;
+
+functional_pseudo:
+  FUNCTION ws expression ')' {
+    $$ = new Node('function');
+    $$->name = substr($1, 0, -1);
+    $$->args = $3;
+  }
+;
+
+expression:
+  expression/$ expression_arg ws {
+    $$[] = $2;
+  }
+| expression_arg ws {
+    $$ = array($1);
+  }
+;
+
+expression_arg:
+  '+'
+| '-'
+| DIMENSION
+| NUMBER
+| STRING
+| IDENT
+;
+
+negation:
+  NOT ws negation_arg ws ')' {
+    $$ = new Node('not');
+    $$->args = $3;
+  }
+;
+
+negation_arg:
+  type_selector | HASH | class | attrib | pseudo_element
+;
+
+pseudo_element:
+  ':' opt_pseudo IDENT {
+    $$ = new Node('pseudo');
+    if ($2) {
+      $$->pseudo = true;
+    }
+    $$->what = $3;
+  }
+;
