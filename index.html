@@ -1,22 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset='utf-8'>
-
-  <title>rvanvelzen/MinifyCSS @ GitHub</title>
+  <meta charset="UTF-8">
+  <title>MinifyCSS @ GitHub</title>
 
   <style type="text/css">
+    @import url(http://fonts.googleapis.com/css?family=Condiment);
+    @import url(http://fonts.googleapis.com/css?family=Asap);
+    @import url(http://fonts.googleapis.com/css?family=Ubuntu+Mono);
+
+
     body {
       margin-top: 1.0em;
       background-color: #369;
-      font-family: Helvetica, Arial, FreeSans, san-serif;
+      font-family: 'Asap', Helvetica, Arial, FreeSans, san-serif;
       color: #ffffff;
     }
     #container {
       margin: 0 auto;
       width: 700px;
     }
-    h1 { font-size: 3.8em; color: #cc9966; margin-bottom: 3px; }
+    h1 { font: 64px 'Condiment'; color: #cc9966; margin-bottom: 3px; }
     h1 .small { font-size: 0.4em; }
     h1 a { text-decoration: none }
     h2 { font-size: 1.5em; color: #cc9966; }
@@ -24,10 +28,21 @@
     a { color: #cc9966; }
     .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
     .download { float: right; }
-    pre { background: #000; color: #fff; padding: 15px;}
+    pre { font-family: 'Ubuntu Mono'; background: #000; color: #fff; padding: 15px;}
     hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
     .footer { text-align:center; padding-top:30px; font-style: italic; }
   </style>
+  <script>
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-29033132-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
 </head>
 
 <body>
@@ -43,33 +58,13 @@
     </div>
 
     <h1><a href="https://github.com/rvanvelzen/MinifyCSS">MinifyCSS</a>
-      <span class="small">by <a href="https://github.com/rvanvelzen">rvanvelzen</a></span></h1>
+      <span class="small">by <a href="https://github.com/rvanvelzen">Richard van Velzen</a></span></h1>
 
     <div class="description">
-      A CSS minifier and optimizer written in PHP, backup up by flex and lime.
+      A CSS minifier and optimizer written in PHP, using flex and <a href="https://github.com/rvanvelzen/lime">lime</a>.
     </div>
-
-    
-
-    
-      <h2>Dependencies</h2>
-      <p>Lime (http://www.github.com/rvanvelzen/lime)
-Flex</p>
-    
-
-    
-
-    
-
-    
       <h2>Authors</h2>
-      <p>Richard van Velzen (rvanvelzen@expert-shops.com)<br/>      </p>
-    
-
-    
-      <h2>Contact</h2>
-      <p>Richard van Velzen (rvanvelzen@expert-shops.com)<br/>      </p>
-    
+      <p>Richard van Velzen (rvanvelzen@expert-shops.com<br/>      </p>
 
     <h2>Download</h2>
     <p>
@@ -87,15 +82,6 @@ Flex</p>
     </div>
 
   </div>
-
-<script type="text/javascript">
-var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-</script>
-<script type="text/javascript">
-try {
-var pageTracker = _gat._getTracker("UA-29033132-1");
-pageTracker._trackPageview();
-} catch(err) {}</script>"
 </body>
 </html>
+
